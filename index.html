@@ -80,15 +80,21 @@
         }, false);
 
         function watchAdForStars() {
-            if(window.admob) {
-                admob.interstitial.show();
-                admob.interstitial.prepare();
-            }
-            stars += 10;
-            localStorage.setItem("neonStars", stars);
-            document.getElementById('starsVal').innerText = stars;
-            alert("Reward: 10 Stars added!");
-        }
+    if (window.admob) {
+        // Pehle ad dikhao
+        admob.interstitial.show();
+        
+        // Jab ad dikh jaye, tabhi stars do
+        admob.interstitial.prepare(); // Agle ad ke liye tayyari
+        
+        stars += 10;
+        localStorage.setItem("neonStars", stars);
+        document.getElementById('starsVal').innerText = stars;
+        alert("Shabash! 10 Stars added.");
+    } else {
+        alert("Ad load nahi ho raha, thoda intezar karein!");
+    }
+        
 
         function playSfx(f, t, d, v, delay = 0) {
             if(!audioCtx || isPaused) return;
