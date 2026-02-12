@@ -81,19 +81,21 @@
 
         function watchAdForStars() {
     if (window.admob) {
-        // Pehle ad dikhao
+        // 1. Pehle ad dikhao
         admob.interstitial.show();
         
-        // Jab ad dikh jaye, tabhi stars do
-        admob.interstitial.prepare(); // Agle ad ke liye tayyari
-        
-        stars += 10;
-        localStorage.setItem("neonStars", stars);
-        document.getElementById('starsVal').innerText = stars;
-        alert("Shabash! 10 Stars added.");
+        // 2. Ad dikhne ke 1 second baad stars do (Safe method)
+        setTimeout(() => {
+            stars += 10;
+            localStorage.setItem("neonStars", stars);
+            document.getElementById('starsVal').innerText = stars;
+            admob.interstitial.prepare(); // Agle ad ke liye prepare
+            alert("Mubarak ho! 10 Stars mil gaye.");
+        }, 1000); 
     } else {
-        alert("Ad load nahi ho raha, thoda intezar karein!");
-    }
+        alert("Ad load ho raha hai, 2-3 second baad click karein!");
+        if(window.admob) admob.interstitial.prepare();
+    }     
         
 
         function playSfx(f, t, d, v, delay = 0) {
