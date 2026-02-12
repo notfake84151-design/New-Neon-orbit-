@@ -1,10 +1,17 @@
 <?xml version='1.0' encoding='utf-8'?>
-<widget id="com.neonorbit.game" version="1.0.0" xmlns="http://www.w3.org/ns/widgets">
+<widget id="com.neonorbit.game" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
     <name>Neon Orbit</name>
     <description>Ultra Fast Space Game</description>
-    <author email="darab@example.com">Darab Sheikh</author>
+    <author email="darab@example.com">Neon Orbit Team</author>
     <content src="index.html" />
-    <preference name="Fullscreen" value="true" />
+    <access origin="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
     
-    <preference name="ADMOB_APP_ID" value="ca-app-pub-6713917529499757~9980872039" />
+    <plugin name="cordova-plugin-admob-free" />
+
+    <platform name="android">
+        <allow-intent href="market:*" />
+    </platform>
 </widget>
+
