@@ -12,10 +12,7 @@
         #stats { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; font-size: 14px; font-weight: bold; pointer-events: none; color: #0ff; z-index: 10; }
         .skin-btn { background: #333; color: white; border: 1px solid #555; padding: 8px; margin: 3px; border-radius: 5px; font-size: 11px; }
         .active-skin { border-color: #0ff; background: #004444; }
-        
-        /* Reward Button Style */
         .ad-btn { background: #ffcc00; color: #000; padding: 10px; border-radius: 10px; margin-top: 15px; cursor: pointer; font-weight: bold; font-size: 12px; display: block; width: 80%; margin-left: auto; margin-right: auto; }
-        
         #pauseBtn { position: absolute; bottom: 20px; right: 20px; pointer-events: auto; background: rgba(0,255,255,0.2); color: #0ff; border: 2px solid #0ff; border-radius: 50%; width: 55px; height: 55px; font-size: 22px; z-index: 200; }
         .hidden { display: none !important; }
     </style>
@@ -33,15 +30,13 @@
     <div id="ui-layer">
         <div id="startMenu" class="menu-card">
             <h1 style="color:#0ff; margin:0;">NEON ORBIT</h1>
-            <p style="font-size:12px;">Music & Shop Enabled</p>
+            <p style="font-size:12px;">100% Ad Earning Enabled</p>
             <button class="btn" onclick="startGame()">START</button>
-            
             <div style="margin-top:10px; border-top:1px solid #333; padding-top:10px;">
                 <p style="font-size:12px; margin:5px;">SKINS:</p>
                 <button class="skin-btn active-skin" onclick="setSkin('circle', 0, this)">Circle</button>
                 <button class="skin-btn" onclick="setSkin('square', 20, this)">Square (20★)</button>
                 <button class="skin-btn" onclick="setSkin('star', 50, this)">Star (50★)</button>
-                
                 <div class="ad-btn" id="adBtn" onclick="watchAdForStars()">📺 GET 10 FREE STARS</div>
             </div>
         </div>
@@ -55,14 +50,13 @@
 
     <canvas id="gameCanvas"></canvas>
 
+    <script src="cordova.js"></script>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         let audioCtx;
-
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-
         let score = 0, stars = parseInt(localStorage.getItem("neonStars")) || 0;
         let highScore = localStorage.getItem("neonBest") || 0;
         let gameActive = false, isPaused = false;
@@ -71,6 +65,28 @@
 
         document.getElementById('highScoreVal').innerText = highScore;
         document.getElementById('starsVal').innerText = stars;
+
+        // --- AdMob Setup ---
+        document.addEventListener('deviceready', () => {
+            // Banner
+            admob.banner.config({ id: 'ca-app-pub-6713917529499757/7350741204' });
+            admob.banner.prepare();
+            admob.banner.show();
+            // Interstitial
+            admob.interstitial.config({ id: 'ca-app-pub-6713917529499757/2681800668' });
+            admob.interstitial.prepare();
+        }, false);
+
+        function watchAdForStars() {
+            // Asli Earning ke liye Interstitial ya Rewarded use hota hai
+            admob.interstitial.show();
+            admob.interstitial.prepare(); // Agle ke liye load
+            // Ad dikhne par stars reward
+            stars += 10;
+            localStorage.setItem("neonStars", stars);
+            document.getElementById('starsVal').innerText = stars;
+            alert("Reward: 10 Stars added!");
+        }
 
         function playSfx(f, t, d, v, delay = 0) {
             if(!audioCtx || isPaused) return;
@@ -91,27 +107,6 @@
             const melody = [261, 329, 392, 523];
             playSfx(melody[Math.floor(Math.random()*4)], 'triangle', 0.6, 0.02, 0.25);
             setTimeout(playMusic, 1000 - (level * 15));
-        }
-
-        // --- Ad Logic Function ---
-        function watchAdForStars() {
-            const btn = document.getElementById('adBtn');
-            btn.innerText = "LOADING AD...";
-            btn.style.pointerEvents = "none";
-            btn.style.opacity = "0.5";
-
-            // Simulating an Ad (2 seconds delay)
-            setTimeout(() => {
-                alert("Ad Finished! You got 10 Stars.");
-                stars += 10;
-                localStorage.setItem("neonStars", stars);
-                document.getElementById('starsVal').innerText = stars;
-                
-                btn.innerText = "📺 GET 10 FREE STARS";
-                btn.style.pointerEvents = "auto";
-                btn.style.opacity = "1";
-                playSfx(800, 'sine', 0.2, 0.1);
-            }, 2000);
         }
 
         function setSkin(type, cost, btn) {
@@ -166,11 +161,9 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.strokeStyle = '#333';
             ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 70, 0, Math.PI*2); ctx.stroke();
-
             const px = canvas.width/2 + Math.cos(angle) * 70;
             const py = canvas.height/2 + Math.sin(angle) * 70;
             angle += direction;
-
             ctx.fillStyle = "#0ff"; ctx.shadowBlur = 15; ctx.shadowColor = "#0ff";
             ctx.beginPath();
             if(currentSkin === 'circle') ctx.arc(px, py, 10, 0, Math.PI*2);
@@ -207,6 +200,9 @@
         function gameOver() {
             gameActive = false;
             playSfx(60, 'sawtooth', 0.5, 0.2);
+            // Game Over par Ad dikhao
+            admob.interstitial.show();
+            admob.interstitial.prepare();
             if(score > highScore) { highScore = score; localStorage.setItem("neonBest", highScore); document.getElementById('highScoreVal').innerText = highScore; }
             document.getElementById('finalScoreText').innerText = "SCORE: " + score;
             document.getElementById('gameOverMenu').classList.remove('hidden');
@@ -220,3 +216,4 @@
     </script>
 </body>
 </html>
+
