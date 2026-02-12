@@ -136,12 +136,23 @@
         }
 
         function resetGame() {
-            score = 0; level = 1; obstacles = []; starsItems = []; angle = 0; direction = 0.05;
-            document.getElementById('scoreVal').innerText = "0";
-            document.getElementById('gameOverMenu').classList.add('hidden');
-            gameActive = true;
-            playMusic();
-            draw();
+    score = 0; 
+    level = 1; 
+    obstacles = []; 
+    starsItems = []; 
+    
+    document.getElementById('scoreVal').innerText = score;
+    document.getElementById('gameOverMenu').classList.add('hidden');
+    
+    gameActive = true;
+    
+    if (typeof playMusic === "function") playMusic();
+    
+    // Nayi line jo stuck hone se bachayegi
+    if (typeof animationId !== 'undefined') cancelAnimationFrame(animationId);
+    draw(); 
+        }
+        
         }
 
         function spawnSystem() {
