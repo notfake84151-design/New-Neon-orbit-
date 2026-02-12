@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Neon Orbit: Ad Earning Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; touch-action: none; color: white; }
+        canvas { display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: none; z-index: 100; }
+        .menu-card { background: rgba(0,0,0,0.95); padding: 25px; border-radius: 20px; border: 2px solid #0ff; text-align: center; pointer-events: auto; min-width: 270px; box-shadow: 0 0 20px #0ff; }
+        .btn { background: #0ff; border: none; padding: 12px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; margin: 10px; font-weight: bold; color: black; }
+        #stats { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; font-size: 14px; font-weight: bold; pointer-events: none; color: #0ff; z-index: 10; }
+        .skin-btn { background: #333; color: white; border: 1px solid #555; padding: 8px; margin: 3px; border-radius: 5px; font-size: 11px; }
+        .active-skin { border-color: #0ff; background: #004444; }
+        
+        /* Reward Button Style */
+        .ad-btn { background: #ffcc00; color: #000; padding: 10px; border-radius: 10px; margin-top: 15px; cursor: pointer; font-weight: bold; font-size: 12px; display: block; width: 80%; margin-left: auto; margin-right: auto; }
+        
+        #pauseBtn { position: absolute; bottom: 20px; right: 20px; pointer-events: auto; background: rgba(0,255,255,0.2); color: #0ff; border: 2px solid #0ff; border-radius: 50%; width: 55px; height: 55px; font-size: 22px; z-index: 200; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="stats">
+        <div>SCORE: <span id="scoreVal">0</span></div>
+        <div>STARS: <span id="starsVal">0</span></div>
+        <div>BEST: <span id="highScoreVal">0</span></div>
+    </div>
+
+    <button id="pauseBtn" onclick="togglePause()">II</button>
+
+    <div id="ui-layer">
+        <div id="startMenu" class="menu-card">
+            <h1 style="color:#0ff; margin:0;">NEON ORBIT</h1>
+            <p style="font-size:12px;">Music & Shop Enabled</p>
+            <button class="btn" onclick="startGame()">START</button>
+            
+            <div style="margin-top:10px; border-top:1px solid #333; padding-top:10px;">
+                <p style="font-size:12px; margin:5px;">SKINS:</p>
+                <button class="skin-btn active-skin" onclick="setSkin('circle', 0, this)">Circle</button>
+                <button class="skin-btn" onclick="setSkin('square', 20, this)">Square (20★)</button>
+                <button class="skin-btn" onclick="setSkin('star', 50, this)">Star (50★)</button>
+                
+                <div class="ad-btn" id="adBtn" onclick="watchAdForStars()">📺 GET 10 FREE STARS</div>
+            </div>
+        </div>
+
+        <div id="gameOverMenu" class="menu-card hidden">
+            <h1 style="color:#f0f; margin:0;">GAME OVER</h1>
+            <p id="finalScoreText" style="margin:10px 0;"></p>
+            <button class="btn" onclick="resetGame()">RESTART</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let audioCtx;
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let score = 0, stars = parseInt(localStorage.getItem("neonStars")) || 0;
+        let highScore = localStorage.getItem("neonBest") || 0;
+        let gameActive = false, isPaused = false;
+        let angle = 0, direction = 0.05, obstacles = [], starsItems = [], level = 1;
+        let currentSkin = 'circle';
+
+        document.getElementById('highScoreVal').innerText = highScore;
+        document.getElementById('starsVal').innerText = stars;
+
+        function playSfx(f, t, d, v, delay = 0) {
+            if(!audioCtx || isPaused) return;
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime + delay);
+            g.gain.setValueAtTime(v, audioCtx.currentTime + delay);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + d);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(audioCtx.currentTime + delay);
+            o.stop(audioCtx.currentTime + delay + d);
+        }
+
+        function playMusic() {
+            if(!gameActive || isPaused) return;
+            playSfx(100, 'sine', 0.5, 0.1);
+            playSfx(150, 'sine', 0.3, 0.05, 0.5);
+            const melody = [261, 329, 392, 523];
+            playSfx(melody[Math.floor(Math.random()*4)], 'triangle', 0.6, 0.02, 0.25);
+            setTimeout(playMusic, 1000 - (level * 15));
+        }
+
+        // --- Ad Logic Function ---
+        function watchAdForStars() {
+            const btn = document.getElementById('adBtn');
+            btn.innerText = "LOADING AD...";
+            btn.style.pointerEvents = "none";
+            btn.style.opacity = "0.5";
+
+            // Simulating an Ad (2 seconds delay)
+            setTimeout(() => {
+                alert("Ad Finished! You got 10 Stars.");
+                stars += 10;
+                localStorage.setItem("neonStars", stars);
+                document.getElementById('starsVal').innerText = stars;
+                
+                btn.innerText = "📺 GET 10 FREE STARS";
+                btn.style.pointerEvents = "auto";
+                btn.style.opacity = "1";
+                playSfx(800, 'sine', 0.2, 0.1);
+            }, 2000);
+        }
+
+        function setSkin(type, cost, btn) {
+            if(stars >= cost) {
+                currentSkin = type;
+                document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('active-skin'));
+                btn.classList.add('active-skin');
+                playSfx(600, 'sine', 0.1, 0.1);
+            } else { alert("Not enough Stars! Watch an Ad."); }
+        }
+
+        function togglePause() {
+            if(!gameActive) return;
+            isPaused = !isPaused;
+            document.getElementById('pauseBtn').innerText = isPaused ? "►" : "II";
+            if(!isPaused) { playMusic(); draw(); }
+        }
+
+        function startGame() {
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            document.getElementById('startMenu').classList.add('hidden');
+            gameActive = true;
+            playMusic();
+            spawnSystem();
+            draw();
+        }
+
+        function resetGame() {
+            score = 0; level = 1; obstacles = []; starsItems = []; angle = 0; direction = 0.05;
+            document.getElementById('scoreVal').innerText = "0";
+            document.getElementById('gameOverMenu').classList.add('hidden');
+            gameActive = true;
+            playMusic();
+            draw();
+        }
+
+        function spawnSystem() {
+            if(!gameActive || isPaused) { setTimeout(spawnSystem, 500); return; }
+            const side = Math.random() * Math.PI * 2;
+            obstacles.push({ x: canvas.width/2 + Math.cos(side) * canvas.width, y: canvas.height/2 + Math.sin(side) * canvas.width, speed: 2 + (level * 0.4) });
+            if(Math.random() > 0.8) {
+                const ps = Math.random() * Math.PI * 2;
+                starsItems.push({ x: canvas.width/2 + Math.cos(ps) * canvas.width, y: canvas.height/2 + Math.sin(ps) * canvas.width });
+            }
+            setTimeout(spawnSystem, Math.max(300, 1000 - (level * 50)));
+        }
+
+        function draw() {
+            if (!gameActive || isPaused) return;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#333';
+            ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 70, 0, Math.PI*2); ctx.stroke();
+
+            const px = canvas.width/2 + Math.cos(angle) * 70;
+            const py = canvas.height/2 + Math.sin(angle) * 70;
+            angle += direction;
+
+            ctx.fillStyle = "#0ff"; ctx.shadowBlur = 15; ctx.shadowColor = "#0ff";
+            ctx.beginPath();
+            if(currentSkin === 'circle') ctx.arc(px, py, 10, 0, Math.PI*2);
+            else if(currentSkin === 'square') ctx.rect(px-9, py-9, 18, 18);
+            else for(let i=0; i<5; i++) ctx.lineTo(px+Math.cos((i*72-90)*Math.PI/180)*15, py+Math.sin((i*72-90)*Math.PI/180)*15);
+            ctx.fill(); ctx.shadowBlur = 0;
+
+            starsItems.forEach((s, i) => {
+                const dx = canvas.width/2-s.x, dy = canvas.height/2-s.y;
+                s.x += dx*0.015; s.y += dy*0.015;
+                ctx.fillStyle = "#ff0"; ctx.beginPath(); ctx.arc(s.x, s.y, 7, 0, Math.PI*2); ctx.fill();
+                if(Math.hypot(px-s.x, py-s.y) < 18) {
+                    stars++; localStorage.setItem("neonStars", stars);
+                    document.getElementById('starsVal').innerText = stars;
+                    starsItems.splice(i,1); playSfx(800, 'sine', 0.1, 0.1);
+                }
+            });
+
+            obstacles.forEach((obs, i) => {
+                const dx = canvas.width/2-obs.x, dy = canvas.height/2-obs.y, dist = Math.hypot(dx, dy);
+                obs.x += (dx/dist)*obs.speed; obs.y += (dy/dist)*obs.speed;
+                ctx.fillStyle = "#f0f"; ctx.fillRect(obs.x-6, obs.y-6, 12, 12);
+                if (Math.hypot(px-obs.x, py-obs.y) < 15) gameOver();
+                if (dist < 5) {
+                    obstacles.splice(i, 1); score++;
+                    document.getElementById('scoreVal').innerText = score;
+                    playSfx(400, 'triangle', 0.05, 0.05);
+                    if(score % 10 === 0) level++;
+                }
+            });
+            requestAnimationFrame(draw);
+        }
+
+        function gameOver() {
+            gameActive = false;
+            playSfx(60, 'sawtooth', 0.5, 0.2);
+            if(score > highScore) { highScore = score; localStorage.setItem("neonBest", highScore); document.getElementById('highScoreVal').innerText = highScore; }
+            document.getElementById('finalScoreText').innerText = "SCORE: " + score;
+            document.getElementById('gameOverMenu').classList.remove('hidden');
+        }
+
+        window.addEventListener('touchstart', (e) => { 
+            if(gameActive && !isPaused && e.target.id !== 'pauseBtn' && e.target.id !== 'adBtn') {
+                direction *= -1; playSfx(300, 'sine', 0.05, 0.05);
+            }
+        });
+    </script>
+</body>
+</html>
