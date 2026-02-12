@@ -57,31 +57,30 @@
         let audioCtx;
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        
         let score = 0, stars = parseInt(localStorage.getItem("neonStars")) || 0;
         let highScore = localStorage.getItem("neonBest") || 0;
         let gameActive = false, isPaused = false;
         let angle = 0, direction = 0.05, obstacles = [], starsItems = [], level = 1;
         let currentSkin = 'circle';
+        let animationId; // Global variable for animation control
 
         document.getElementById('highScoreVal').innerText = highScore;
         document.getElementById('starsVal').innerText = stars;
 
-        // --- AdMob Setup ---
         document.addEventListener('deviceready', () => {
-            // Banner
             admob.banner.config({ id: 'ca-app-pub-6713917529499757/7350741204' });
             admob.banner.prepare();
             admob.banner.show();
-            // Interstitial
             admob.interstitial.config({ id: 'ca-app-pub-6713917529499757/2681800668' });
             admob.interstitial.prepare();
         }, false);
 
         function watchAdForStars() {
-            // Asli Earning ke liye Interstitial ya Rewarded use hota hai
-            admob.interstitial.show();
-            admob.interstitial.prepare(); // Agle ke liye load
-            // Ad dikhne par stars reward
+            if(window.admob) {
+                admob.interstitial.show();
+                admob.interstitial.prepare();
+            }
             stars += 10;
             localStorage.setItem("neonStars", stars);
             document.getElementById('starsVal').innerText = stars;
@@ -90,23 +89,25 @@
 
         function playSfx(f, t, d, v, delay = 0) {
             if(!audioCtx || isPaused) return;
-            const o = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime + delay);
-            g.gain.setValueAtTime(v, audioCtx.currentTime + delay);
-            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + d);
-            o.connect(g); g.connect(audioCtx.destination);
-            o.start(audioCtx.currentTime + delay);
-            o.stop(audioCtx.currentTime + delay + d);
+            try {
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime + delay);
+                g.gain.setValueAtTime(v, audioCtx.currentTime + delay);
+                g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + d);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(audioCtx.currentTime + delay);
+                o.stop(audioCtx.currentTime + delay + d);
+            } catch(e) {}
         }
 
+        let musicTimer;
         function playMusic() {
             if(!gameActive || isPaused) return;
             playSfx(100, 'sine', 0.5, 0.1);
-            playSfx(150, 'sine', 0.3, 0.05, 0.5);
             const melody = [261, 329, 392, 523];
             playSfx(melody[Math.floor(Math.random()*4)], 'triangle', 0.6, 0.02, 0.25);
-            setTimeout(playMusic, 1000 - (level * 15));
+            musicTimer = setTimeout(playMusic, 1000 - (level * 15));
         }
 
         function setSkin(type, cost, btn) {
@@ -122,7 +123,13 @@
             if(!gameActive) return;
             isPaused = !isPaused;
             document.getElementById('pauseBtn').innerText = isPaused ? "►" : "II";
-            if(!isPaused) { playMusic(); draw(); }
+            if(!isPaused) { 
+                playMusic(); 
+                draw(); 
+            } else {
+                clearTimeout(musicTimer);
+                cancelAnimationFrame(animationId);
+            }
         }
 
         function startGame() {
@@ -130,34 +137,36 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
             document.getElementById('startMenu').classList.add('hidden');
             gameActive = true;
+            isPaused = false;
             playMusic();
             spawnSystem();
             draw();
         }
 
         function resetGame() {
-             score = 0; 
-             level = 1; 
-             obstacles = []; 
-             starsItems = []; 
-    
-    document.getElementById('scoreVal').innerText = score;
-    document.getElementById('gameOverMenu').classList.add('hidden');
-    
-    gameActive = true;
-    
-    if (typeof playMusic === "function") playMusic();
-    
-    // Nayi line jo stuck hone se bachayegi
-    if (typeof animationId !== 'undefined') cancelAnimationFrame(animationId);
-    draw(); 
+            cancelAnimationFrame(animationId);
+            clearTimeout(musicTimer);
+            score = 0; 
+            level = 1; 
+            obstacles = []; 
+            starsItems = []; 
+            angle = 0;
+            document.getElementById('scoreVal').innerText = score;
+            document.getElementById('gameOverMenu').classList.add('hidden');
+            gameActive = true;
+            isPaused = false;
+            playMusic();
+            draw(); 
         }       
 
-        
         function spawnSystem() {
             if(!gameActive || isPaused) { setTimeout(spawnSystem, 500); return; }
             const side = Math.random() * Math.PI * 2;
-            obstacles.push({ x: canvas.width/2 + Math.cos(side) * canvas.width, y: canvas.height/2 + Math.sin(side) * canvas.width, speed: 2 + (level * 0.4) });
+            obstacles.push({ 
+                x: canvas.width/2 + Math.cos(side) * canvas.width, 
+                y: canvas.height/2 + Math.sin(side) * canvas.width, 
+                speed: 2 + (level * 0.4) 
+            });
             if(Math.random() > 0.8) {
                 const ps = Math.random() * Math.PI * 2;
                 starsItems.push({ x: canvas.width/2 + Math.cos(ps) * canvas.width, y: canvas.height/2 + Math.sin(ps) * canvas.width });
@@ -171,14 +180,20 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.strokeStyle = '#333';
             ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 70, 0, Math.PI*2); ctx.stroke();
+            
             const px = canvas.width/2 + Math.cos(angle) * 70;
             const py = canvas.height/2 + Math.sin(angle) * 70;
             angle += direction;
+            
             ctx.fillStyle = "#0ff"; ctx.shadowBlur = 15; ctx.shadowColor = "#0ff";
             ctx.beginPath();
             if(currentSkin === 'circle') ctx.arc(px, py, 10, 0, Math.PI*2);
             else if(currentSkin === 'square') ctx.rect(px-9, py-9, 18, 18);
-            else for(let i=0; i<5; i++) ctx.lineTo(px+Math.cos((i*72-90)*Math.PI/180)*15, py+Math.sin((i*72-90)*Math.PI/180)*15);
+            else {
+                for(let i=0; i<5; i++) {
+                    ctx.lineTo(px+Math.cos((i*72-90)*Math.PI/180)*15, py+Math.sin((i*72-90)*Math.PI/180)*15);
+                }
+            }
             ctx.fill(); ctx.shadowBlur = 0;
 
             starsItems.forEach((s, i) => {
@@ -204,15 +219,18 @@
                     if(score % 10 === 0) level++;
                 }
             });
-            requestAnimationFrame(draw);
+            animationId = requestAnimationFrame(draw);
         }
 
         function gameOver() {
             gameActive = false;
+            cancelAnimationFrame(animationId);
+            clearTimeout(musicTimer);
             playSfx(60, 'sawtooth', 0.5, 0.2);
-            // Game Over par Ad dikhao
-            admob.interstitial.show();
-            admob.interstitial.prepare();
+            if(window.admob) {
+                admob.interstitial.show();
+                admob.interstitial.prepare();
+            }
             if(score > highScore) { highScore = score; localStorage.setItem("neonBest", highScore); document.getElementById('highScoreVal').innerText = highScore; }
             document.getElementById('finalScoreText').innerText = "SCORE: " + score;
             document.getElementById('gameOverMenu').classList.remove('hidden');
@@ -226,4 +244,3 @@
     </script>
 </body>
 </html>
-
