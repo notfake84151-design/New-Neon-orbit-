@@ -151,8 +151,9 @@
     // Nayi line jo stuck hone se bachayegi
     if (typeof animationId !== 'undefined') cancelAnimationFrame(animationId);
     draw(); 
-        }
+        }       
 
+        
         function spawnSystem() {
             if(!gameActive || isPaused) { setTimeout(spawnSystem, 500); return; }
             const side = Math.random() * Math.PI * 2;
